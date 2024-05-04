@@ -123,94 +123,110 @@ def registro_reservacion():
     # **** COMPRUEBA CLIENTES REGISTRADOS ****
     #COMPRUEBA CLIENTES REGISTRADOS
     numero_capturado = reservacion.lineEdit.text() #ID Cliente
-    if (len(numero_capturado) == 0):
-        reservacion.label_9.setText("No se encontraron clientes registrados, registrate como cliente para hacer una reservación")
+    if (len(numero_capturado) == 0) :
+        reservacion.label_3.setText("Por favor ingrese un ID")
     else:
         try:
             numero_capturado_int = int(numero_capturado)
+            try:
+                with sqlite3.connect("reservaciones.db") as conexion:  #comprobar que haya clientes registrados
+                    mi_cursor = conexion.cursor()
+                    mi_cursor.execute("SELECT idClientes FROM clientes;")
+                    numeros_clientes = mi_cursor.fetchall()
+                for elemento in numeros_clientes:
+                    set_nums_clientes.add(elemento[0])  # set con los id's de los clientes
+            except sqlite3.Error as e:
+                print(e)
+            except:
+                #print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+                reservacion.label_9.setText("Por favor ingrese un usuario valido")
         except:
-            registro_clientes.label_7.setText("Numero de telefono no valido")
+            reservacion.label_3.setText("Por favor ingrese un dato valido (Dato numerico)")
+
     try:
-        with sqlite3.connect("reservaciones.db") as conexion:  #comprobar que haya clientes registrados
+        with sqlite3.connect("reservaciones.db") as conexion:
             mi_cursor = conexion.cursor()
-            mi_cursor.execute("SELECT * FROM clientes;")
-            clientes_registrados = mi_cursor.fetchall()
-            numeros_clientes = mi_cursor.fetchall()
-            for elemento in numeros_clientes:
-                set_nums_clientes.add(elemento[0])  # set con los id's de los clientes
+            mi_cursor.execute("SELECT * FROM habitacion;")
+            habitaciones_registradas = mi_cursor.fetchall() # originalmente era salas_registradas
+            if len(habitaciones_registradas) == 0:
+                reservacion.label_10.setText("No se encontraron habitaciones registradas, registra una habitación para reservarla")
+            else:
+                habitacion_deseada = reservacion.lineEdit_5.text()
+                if len(habitacion_deseada) == 0:
+                    reservacion.label_9.setText("Por favor ingresa una habitacion para continuar")
+                else:
+                    try:
+                        habitacion_deseada_int = int(habitacion_deseada)# originalmente era sala_deseada
+                    except:
+                        reservacion.label_9.setText("Por favor ingresa dato numerico")
+                    for elemento in habitaciones_registradas:
+                        set_claves_habitaciones.add(elemento[0])    # set con los id's de cada habitación
+                    if habitacion_deseada_int not in set_claves_habitaciones:
+                        reservacion.label_9.setText("La clave de habitación no existe, ingresa una clave existente")
+                #habitacion_deseada=int(input('\nIngrese la clave de la habitación que desea reservar: '))
     except sqlite3.Error as e:
         print(e)
     except:
-        #print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-        reservacion.label_9.setText("Por favor ingrese un usuario valido")
-        #NUMERO CLIENTE
+        reservacion.label_9.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
 
     # fecha de inicio de la reservación
     fecha_inicio_capturada = reservacion.lineEdit_3.text()
     if (fecha_inicio_capturada == "" or str.isspace(fecha_inicio_capturada)):
-        registro_clientes.label_8.setText("Se debe escribir una fecha para la reservación")
+        reservacion.label_8.setText("Se debe escribir una fecha para la reservación")
     else:
         try:
             fecha_inicio_procesada = datetime.datetime.strptime(fecha_inicio_capturada, "%d/%m/%Y").date()
             fecha_inicio_reservacion = datetime.datetime.combine(fecha_inicio_procesada, datetime.time(00, 00, 00)) # originalmente era fecha_evento
-        except:
-            registro_clientes.label_8.setText("Formato de fecha invalido (DD/MM/YYYY)")
-    delta = fecha_inicio_reservacion - rounded_actual
-    if (delta.days < 2):
-        reservacion.label_.setText("La reservación tiene que ser, por lo menos, dos días antes de la fecha actual")
-        fecha_inicio_capturada = reservacion.lineEdit_3.text()
-        fecha_inicio_procesada = datetime.datetime.strptime(fecha_inicio_capturada, "%d/%m/%Y").date()
-        fecha_inicio_reservacion = datetime.datetime.combine(fecha_inicio_procesada, datetime.time(00, 00, 00))
-        delta = fecha_inicio_reservacion - rounded_actual
-
-    # fecha de fin de la reservación:
-    fecha_fin_capturada = reservacion.lineEdit_4.text()
-    if (fecha_fin_capturada == "" or str.isspace(fecha_fin_capturada)):
-        print("\n-- Se debe escribir una fecha final para la reservación --")
-        fecha_fin_capturada = input("Introduce la fecha de fin de la reservación (DD/MM/AAAA): ")
-    fecha_fin_procesada = datetime.datetime.strptime(fecha_fin_capturada, "%d/%m/%Y").date()
-
-    if numero_capturado in set_nums_clientes:
-        try:
-            with sqlite3.connect("reservaciones.db") as conexion:
-                mi_cursor = conexion.cursor()
-                mi_cursor.execute("SELECT * FROM habitacion;")
-                habitaciones_registradas = mi_cursor.fetchall()    # originalmente era salas_registradas
-                if habitaciones_registradas:
-                    habitacion_deseada = reservacion.lineEdit_5.text() # originalmente era sala_deseada
-                    for elemento in habitaciones_registradas:
-                        set_claves_habitaciones.add(elemento[0])    # set con los id's de cada habitación
-                    while habitacion_deseada not in set_claves_habitaciones:
-                        reservacion.label_9.setText("La clave de habitación no existe, ingresa una clave existente")
-                        habitacion_deseada = reservacion.lineEdit_5.text()
-                        #habitacion_deseada=int(input('\nIngrese la clave de la habitación que desea reservar: '))
-                else:
-                    reservacion.label_10.setText("No se encontraron habitaciones registradas, registra una habitación para reservarla.")
-        except sqlite3.Error as e:
-            print(e)
-        except:
-            reservacion.label_10.setText("Se produjo el siguiente error: {sys.exc_info()[0]}")
-    else:
-        reservacion.label_10.setText("El número de cliente no existe, tienes que registrarte para hacer una reservación.\n")
-
-    with sqlite3.connect("reservaciones.db") as conn:
-            datos_reservacion = (str(fecha_inicio_procesada), habitacion_deseada) #originalmente era condiciones_sala, tupla para los datos a verificar si ya existen en la tabla reservacion
-            mi_cursor = conn.cursor()
-            mi_cursor.execute("SELECT * FROM reservacion WHERE fecha_inicio=:fecha_inicio AND Habitacion_idHabitacion=:habitacion_id", {"fecha_inicio": fecha_inicio_procesada, "habitacion_id": habitacion_deseada})
-            habitaciones_ocupadas = mi_cursor.fetchall()
-            if habitaciones_ocupadas:
-                reservacion.label_9.setText("Ya existe una reservación para esa habitación, a esa fecha y en ese turno.")
+            delta = fecha_inicio_reservacion - rounded_actual
+            if (delta.days < 2):
+                reservacion.label_8.setText("La reservación tiene que ser, por lo menos, dos días antes de la fecha actual")
             else:
-                try:
-                    with sqlite3.connect("reservaciones.db") as conn:
-                        mi_cursor = conn.cursor()
-                        dict_reservacion = {"fecha_inicio": fecha_inicio_procesada, "fin": fecha_fin_procesada,"cliente": numero_capturado_int,"Habitacion": habitacion_deseada}
-                        mi_cursor.execute("INSERT INTO reservacion (fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion) VALUES(:fecha_inicio, :fin, :cliente, :Habitacion)", dict_reservacion)
-                        reservacion.label_9.setText("Registro de reservación agregado.")
-                except sqlite3.Error as e:
-                    print (e)
-                except:
-                    reservacion.label_9.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+                fecha_fin_capturada = reservacion.lineEdit_4.text()
+                if (fecha_fin_capturada == "" or str.isspace(fecha_fin_capturada)):
+                    reservacion.label_10.setText("Se debe escribir una fecha final para la reservación")
+                else:
+                    try:
+                        fecha_fin_procesada = datetime.datetime.strptime(fecha_fin_capturada, "%d/%m/%Y").date()
+                        if fecha_fin_procesada <= fecha_inicio_procesada:
+                            reservacion.label_10.setText("La fecha de fin no puede ser antes o el mismo dia a la fecha de inicio")
+                        else:
+                            with sqlite3.connect("reservaciones.db") as conn:
+                                datos_reservacion = (str(fecha_inicio_procesada), habitacion_deseada) #originalmente era condiciones_sala, tupla para los datos a verificar si ya existen en la tabla reservacion
+                                mi_cursor = conn.cursor()
+                                mi_cursor.execute("SELECT * FROM reservacion WHERE fecha_inicio=:fecha_inicio AND Habitacion_idHabitacion=:habitacion_id", {"fecha_inicio": fecha_inicio_procesada, "habitacion_id": habitacion_deseada})
+                                habitaciones_ocupadas = mi_cursor.fetchall()
+                                if habitaciones_ocupadas:
+                                    reservacion.label_10.setText("Ya existe una reservación para esa habitación, a esa fecha y en ese turno.")
+                                else:
+                                    if numero_capturado_int in set_nums_clientes:
+                                        try:
+                                            with sqlite3.connect("reservaciones.db") as conn:
+                                                mi_cursor = conn.cursor()
+                                                dict_reservacion = {"fecha_inicio": fecha_inicio_procesada, "fin": fecha_fin_procesada,"cliente": numero_capturado_int,"Habitacion": habitacion_deseada}
+                                                mi_cursor.execute("INSERT INTO reservacion (fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion) VALUES(:fecha_inicio, :fin, :cliente, :Habitacion)", dict_reservacion)
+                                                reservacion.hide()
+                                                reservacion.label_3.setText("")
+                                                reservacion.label_8.setText("")
+                                                reservacion.label_10.setText("")
+                                                reservacion.label_8.setText("")
+                                                reservacion.lineEdit.setText("")
+                                                reservacion.lineEdit_3.setText("")
+                                                reservacion.lineEdit_4.setText("")
+                                                reservacion.lineEdit_5.setText("")
+                                                inicio.label_19.setText("Registro exitoso")
+                                                inicio.label_20.setText(f"Reservación numero: {mi_cursor.lastrowid}, fecha de inicio: {fecha_inicio_procesada.strftime('%d/%m/%Y')}, fecha fin: {fecha_fin_procesada.strftime('%d/%m/%Y')}, cliente: {numero_capturado}, Habitación: {habitacion_deseada}")
+                                                inicio.show()
+                                        except sqlite3.Error as e:
+                                            print (e)
+                                        except:
+                                            reservacion.label_9.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+                                    else:
+                                        reservacion.label_3.setText("Cliente no registrado, registrate para hacer una reservación")
+                    except:
+                        reservacion.label_10.setText("Formato de fecha invalido (DD/MM/AAAA)")
+                            # fecha de fin de la reservación:
+        except:
+            reservacion.label_8.setText("Formato de fecha invalido (DD/MM/YYYY)")
 
 # REGISTRO DE CLIENTE *****(CHECK)*****
 

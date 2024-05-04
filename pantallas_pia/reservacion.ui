@@ -209,9 +209,9 @@ background-color: rgb(215, 20, 64);</string>
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>70</x>
+      <x>40</x>
       <y>230</y>
-      <width>211</width>
+      <width>311</width>
       <height>21</height>
      </rect>
     </property>
@@ -228,7 +228,7 @@ background-color: rgb(215, 20, 64);</string>
      <rect>
       <x>440</x>
       <y>240</y>
-      <width>211</width>
+      <width>291</width>
       <height>21</height>
      </rect>
     </property>
@@ -243,9 +243,9 @@ background-color: rgb(215, 20, 64);</string>
    <widget class="QLabel" name="label_9">
     <property name="geometry">
      <rect>
-      <x>330</x>
+      <x>270</x>
       <y>470</y>
-      <width>211</width>
+      <width>341</width>
       <height>21</height>
      </rect>
     </property>
@@ -262,7 +262,7 @@ background-color: rgb(215, 20, 64);</string>
      <rect>
       <x>430</x>
       <y>330</y>
-      <width>211</width>
+      <width>301</width>
       <height>21</height>
      </rect>
     </property>
