@@ -33,7 +33,7 @@ font: 20pt &quot;MS Shell Dlg 2&quot;;</string>
     <string>Eliminación exitosa</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton">
+  <widget class="QPushButton" name="volver">
    <property name="geometry">
     <rect>
      <x>180</x>

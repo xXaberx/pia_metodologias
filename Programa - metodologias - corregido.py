@@ -46,9 +46,9 @@ set_claves_habitaciones = set()    # originalmente era set_claves_salas
 # set_descrip_evento = set()
 
 if os.path.exists("reservaciones.db"):
-    print("\nSe ha encontrado la base de datos en el directorio.\n")
+    inicio.label_19.setText("Se ha encontrado la base de datos en el directorio.")
 else:
-    print("No se ha encontrado una base de datos previa, se procede a crearla.\n")
+    inicio.label_19.setText("No se ha encontrado una base de datos previa, se procede a crearla.")
     try:
         with sqlite3.connect("reservaciones.db") as conexion:
             mi_cursor = conexion.cursor()
@@ -109,16 +109,17 @@ else:
             mi_cursor.execute("INSERT INTO habitacion(tipo_habitacion, piso, precio, estado) VALUES ('VIP', 10, 3500, 'D');")
             mi_cursor.execute("INSERT INTO habitacion(tipo_habitacion, piso, precio, estado) VALUES ('VIP', 10, 3500,'D' );")
 
-            print("Registros de habitaciones existentes ingresados.")
+            inicio.label_20.setText("Registros de habitaciones existentes ingresados.")
     except sqlite3.Error as e:
         print(e)
     except:
-        print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+        inicio.label_20.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
 
 #***********************************************************************************
 # ********************* Funciones apertura y clausura de pantallas *****************
 ##**********************************************************************************
-# REGISTRAR UNA RESERVACION
+
+# REGISTRAR UNA RESERVACION *****(CHECK)*****
 def registro_reservacion():
     # **** COMPRUEBA CLIENTES REGISTRADOS ****
     #COMPRUEBA CLIENTES REGISTRADOS
@@ -228,6 +229,224 @@ def registro_reservacion():
         except:
             reservacion.label_8.setText("Formato de fecha invalido (DD/MM/YYYY)")
 
+# CONSULTAR HABITACIONES DISPONIBLES PARA UNA FECHA *****(CHECK)*****
+def consulta_habitaciones():
+    fecha_busqueda = disponibles.lineEdit.text()
+    if (fecha_busqueda == "" or str.isspace(fecha_busqueda)):
+        disponibles.label_7.setText("Por favor escribe una fecha para continuar (DD/MM/AAAA)")
+    try:
+        fecha_busq_proc = datetime.datetime.strptime(fecha_busqueda, "%d/%m/%Y").date()
+        tupla_fecha_disp = (fecha_busq_proc,)
+        try:
+            with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
+                mi_cursor = conexion.cursor()
+                mi_cursor.execute("SELECT * FROM habitacion WHERE idHabitacion NOT IN (SELECT Habitacion_idHabitacion FROM reservacion WHERE ? BETWEEN fecha_inicio AND fecha_fin);", tupla_fecha_disp)
+                fetch_habitaciones_disp = mi_cursor.fetchall() #todas las fechas (de inicio y fin) de cada reservación
+                if fetch_habitaciones_disp:
+                    disponibles.tableWidget.setRowCount(0)
+                    fila = 0
+                    for fecha in fetch_habitaciones_disp:
+                        disponibles.tableWidget.insertRow(fila)
+                        columna = 0
+                        for elemento in fecha:
+                            celda = QTableWidgetItem(str(elemento))
+                            disponibles.tableWidget.setItem(fila,columna, celda)
+                            columna += 1
+                        fila += 1
+                else:
+                    disponibles.label_8.setText("No se encontraron habitaciones disponibles en esa fecha.")
+        except sqlite3.Error as e:
+            print(e)
+        except:
+            disponibles.label_8.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+    except:
+        disponibles.label_7.setText("Formato de fecha invalido (DD/MM/YYYY)")
+
+# Consulta de reservaciones para una fecha especifica ******** [CHECK] ********
+
+def consulta_reservaciones():
+    fecha_consulta = consulta.lineEdit.text()
+    if (fecha_consulta == "" or str.isspace(fecha_consulta)):
+        consulta.label_5.setText("Por favor ingrese una fecha para continuar")
+    else:
+        try:
+            fecha_proc_consulta = datetime.datetime.strptime(fecha_consulta, "%d/%m/%Y").date() # checar formato de fecha
+            try:
+                tupla_fecha_consulta = (fecha_proc_consulta,)
+                consulta.tableWidget.clearContents()  # Elimina el contenido de las celdas
+                while consulta.tableWidget.rowCount() > 0:
+                    consulta.tableWidget.removeRow(0)
+                with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
+                    mi_cursor = conexion.cursor()
+                    mi_cursor.execute("SELECT idreservacion, fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion FROM reservacion WHERE ? BETWEEN fecha_inicio AND fecha_fin;", tupla_fecha_consulta)  # CAMBIÉ: estaba agregada la tupla pero faltaba el WHERE
+                    reservaciones_en_fecha = mi_cursor.fetchall()
+                    if reservaciones_en_fecha:
+                        consulta.tableWidget.setRowCount(0)
+                        fila = 0
+                        for reservacion in reservaciones_en_fecha:
+                            consulta.tableWidget.insertRow(fila)
+                            columna = 0
+                            for elemento in reservacion:
+                                celda = QTableWidgetItem(str(elemento))
+                                consulta.tableWidget.setItem(fila,columna, celda)
+                                columna += 1
+                            fila += 1
+                    else:
+                        consulta.label_5.setText("No se encontraron reservaciones registradas para esa fecha.")
+            except sqlite3.Error as e:
+                consulta.label_5.setText(e)
+            except:
+                consulta.label_5.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+        except:
+            consulta.label_5.setText("Formato de fecha incorrecto (DD/MM/AAAA)")
+
+# CREAR REPORTE EN EXCEL ******* [CHECK] *******
+
+def reporte_excel():
+    fecha_consultar_reservacion = consulta.lineEdit.text()
+    if (fecha_consultar_reservacion == "" or str.isspace(fecha_consultar_reservacion)):
+        consulta.label_6.setText("Por favor ingrese una fecha (DD/MM/AAAA)")
+    else:
+        try:
+            fecha_procesada_consul = datetime.datetime.strptime(fecha_consultar_reservacion, "%d/%m/%Y").date()
+            tupla_fecha_exportar = (fecha_procesada_consul,)
+            try:
+                with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
+                    mi_cursor = conexion.cursor()
+                    mi_cursor.execute("SELECT idreservacion, fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion FROM reservacion WHERE ? BETWEEN fecha_inicio AND fecha_fin", tupla_fecha_exportar)  #CAMBIÉ: faltaba el WHERE
+                    reservacion_a_exportar = mi_cursor.fetchall()
+                    if reservacion_a_exportar:
+                        for id, fecha_inicio, fecha_fin, cliente, habitacion in reservacion_a_exportar: # CAMBIÉ: los datos enlistados estaban en un orden distinto al original escrito en el SELECT (los datos se hubieran guardado desordenados)
+                            dict_por_fecha[id] = [fecha_inicio, fecha_fin, cliente, habitacion]
+                        with open("reservaciones.csv","w", newline="") as archivo_reserv:
+                            grabador = csv.writer(archivo_reserv)
+                            grabador.writerow(("Clave de reservacion", "Fecha de inicio", "Fecha de fin", "Cliente", "Habitacion"))
+                            grabador.writerows([(id_columna, datos[0], datos[1], datos[2], datos[3]) for id_columna, datos in dict_por_fecha.items()])
+                        df_reserv_fecha = pd.read_csv('reservaciones.csv')
+                        excel_reserv = pd.ExcelWriter('reservaciones.xlsx')
+                        df_reserv_fecha.to_excel(excel_reserv, index=False)
+                        excel_reserv.save()     # si crea el archivo pero aparece el mensaje "save is not part of the public API, usage can give in unexpected results and will be removed in a future version"
+                        consulta.label_6.setText("Se ha creado el archivo excel.")
+                    else:
+                        consulta.label_6.setText("No se encontraron reservaciones registradas para esa fecha.")
+            except sqlite3.Error as e:
+                consulta.label_6.setText(e)
+            except:
+                consulta.label_6.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+        except:
+            consulta.label_5.setText("Formato de fecha incorrecto (DD/MM/AAAA)")
+
+def eliminar_buscar():
+    try:
+        clave_eliminar = eliminacion.lineEdit.text()
+        clave_eliminar_int = int(clave_eliminar)
+        try:
+            tupla_numero_reservacion = (clave_eliminar_int,)
+            with sqlite3.connect("reservaciones.db") as conexion:
+                mi_cursor = conexion.cursor()
+                mi_cursor.execute("SELECT * FROM reservacion WHERE idreservacion = ? ",tupla_numero_reservacion)
+                reserv_registrados = mi_cursor.fetchall()   # originalmente era eventos_registrados
+                if reserv_registrados:
+                    eliminacion.tableWidget.setRowCount(0)
+                    fila = 0
+                    for fecha in reserv_registrados:
+                        eliminacion.tableWidget.insertRow(fila)
+                        columna = 0
+                        for elemento in fecha:
+                            celda = QTableWidgetItem(str(elemento))
+                            eliminacion.tableWidget.setItem(fila,columna, celda)
+                            columna += 1
+                        fila += 1
+                else:
+                    eliminacion.label_4.setText("No se encontraron reservaciones registradas.")
+        except sqlite3.Error as e:
+            eliminacion.label_4.setText(e)
+        except:
+            eliminacion.label_4.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+    except:
+        eliminacion.label_4.setText("ingrese un caracter valido")
+
+# ELIMINAR UNA RESERVACION
+def eliminar_reservacion():
+    try:
+        clave_eliminar = eliminacion.lineEdit.text()
+        clave_eliminar_int = int(clave_eliminar)
+        try:
+            with sqlite3.connect("reservaciones.db") as conexion:
+                mi_cursor = conexion.cursor()
+                tupla_clave_eliminar = (clave_eliminar_int,)
+                mi_cursor.execute("SELECT fecha_inicio FROM reservacion WHERE idreservacion = ?", tupla_clave_eliminar)
+                reserv_con_clave = mi_cursor.fetchall()
+                if reserv_con_clave:
+                    for fecha in reserv_con_clave:
+                        for elemento in fecha:
+                            elemento_str = str(elemento)
+                            fecha_reserv_eliminar = datetime.datetime.strptime(elemento_str, "%Y-%m-%d").date()
+                            fecha_proc_eliminar = datetime.datetime.combine(fecha_reserv_eliminar, datetime.time(00, 00, 00))
+                            delta_eliminar = fecha_proc_eliminar - rounded_actual
+                            if (delta_eliminar.days < 3):
+                                eliminacion.label_4.setText("Solo se pueden eliminar reservaciones con, por lo menos, tres días de anticipación.")
+                            else:
+                                eliminacion.hide()
+                                confirmacion.show()
+                else:
+                    eliminacion.label_4.setText("No se encontró una reservación con esa clave.")
+        except sqlite3.Error as e:
+            eliminacion.label_4.setText(e)
+        except:
+            eliminacion.label_4.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+    except:
+        eliminacion.label_4.setText("ingrese un caracter valido")
+
+def confirmar_eliminacion_si():
+    clave_eliminar = eliminacion.lineEdit.text()
+    clave_eliminar_int = int(clave_eliminar)
+    tupla_clave_eliminar = (clave_eliminar_int,)
+    try:
+        with sqlite3.connect("reservaciones.db") as conexion:
+            mi_cursor = conexion.cursor()
+            mi_cursor.execute("DELETE FROM reservacion WHERE idreservacion = ?", tupla_clave_eliminar)
+            confirmacion.hide()
+            eliminacion.lineEdit.setText("")
+            exito_r.show()
+    except sqlite3.Error as e:
+        eliminacion.label_4.setText(e)
+    except:
+        eliminacion.label_4.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+
+def confirmar_eliminacion_no():
+    confirmacion.hide()
+    eliminacion.label_4.setText("Eliminacion cancelada")
+    eliminacion.show()
+
+def exito_regresar_eliminacion():
+    exito_r.hide()
+    eliminacion.show()
+    eliminacion.label_4.setText("")
+    try:
+        with sqlite3.connect("reservaciones.db") as conexion:
+            mi_cursor = conexion.cursor()
+            mi_cursor.execute("SELECT * FROM reservacion")
+            reserv_registrados = mi_cursor.fetchall()   # originalmente era eventos_registrados
+            if reserv_registrados:
+                eliminacion.tableWidget.setRowCount(0)
+                fila = 0
+                for fecha in reserv_registrados:
+                    eliminacion.tableWidget.insertRow(fila)
+                    columna = 0
+                    for elemento in fecha:
+                        celda = QTableWidgetItem(str(elemento))
+                        eliminacion.tableWidget.setItem(fila,columna, celda)
+                        columna += 1
+                    fila += 1
+            else:
+                eliminacion.label_4.setText("No se encontraron reservaciones registradas.")
+    except sqlite3.Error as e:
+        eliminacion.label_4.setText(e)
+    except:
+        eliminacion.label_4.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
+    eliminacion.show()
+
 # REGISTRO DE CLIENTE *****(CHECK)*****
 
 def registro_cliente():
@@ -265,6 +484,7 @@ def registro_cliente():
             #print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
 
 #CONSULTA DE CLIENTES (CON ID) *****(CHECK)*****
+
 def consulta_clientes_id():
     id_cliente = consulta_clientes.lineEdit.text()
     if id_cliente.isspace():
@@ -316,6 +536,8 @@ def ver_clientes():
 
 def inicio_registrar():
     inicio.hide()
+    inicio.label_19.setText("")
+    inicio.label_20.setText("")
     reservacion.show()
 
 #De REGISTRO a INICIO (AL REVES)
@@ -326,6 +548,28 @@ def registrar_inicio():
 #De INICIO a Habitaciones disponibles
 def inicio_disponibles():
     inicio.hide()
+    try:
+        with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
+            mi_cursor = conexion.cursor()
+            mi_cursor.execute("SELECT * FROM habitacion;")
+            fetch_habitaciones_disp = mi_cursor.fetchall() #todas las fechas (de inicio y fin) de cada reservación
+            if fetch_habitaciones_disp:
+                disponibles.tableWidget.setRowCount(0)
+                fila = 0
+                for fecha in fetch_habitaciones_disp:
+                    disponibles.tableWidget.insertRow(fila)
+                    columna = 0
+                    for elemento in fecha:
+                        celda = QTableWidgetItem(str(elemento))
+                        disponibles.tableWidget.setItem(fila,columna, celda)
+                        columna += 1
+                    fila += 1
+            else:
+                disponibles.label_7.setText("No se encontraron habitaciones disponibles en esa fecha.")
+    except sqlite3.Error as e:
+        disponibles.label_7.setText(e)
+    except:
+        disponibles.label_7.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
     disponibles.show()
 
 #De Habitaciones disponibles a INICIO (AL REVES)
@@ -336,16 +580,69 @@ def disponibles_inicio():
 #De INICIO a Consultar reservaciones
 def inicio_consulta():
     inicio.hide()
+    inicio.label_19.setText("")
+    inicio.label_20.setText("")
+    try:
+        with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
+            mi_cursor = conexion.cursor()
+            mi_cursor.execute("SELECT * FROM reservacion;")
+            fetch_habitaciones_disp = mi_cursor.fetchall() #todas las fechas (de inicio y fin) de cada reservación
+            if fetch_habitaciones_disp:
+                consulta.tableWidget.setRowCount(0)
+                fila = 0
+                for fecha in fetch_habitaciones_disp:
+                    consulta.tableWidget.insertRow(fila)
+                    columna = 0
+                    for elemento in fecha:
+                        celda = QTableWidgetItem(str(elemento))
+                        consulta.tableWidget.setItem(fila,columna, celda)
+                        columna += 1
+                    fila += 1
+            else:
+                consulta.label_5.setText("No se encontraron habitaciones disponibles en esa fecha.")
+    except sqlite3.Error as e:
+        consulta.label_5.setText(e)
+    except:
+        consulta.label_5.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
     consulta.show()
 
 #De Consultar reservaciones a INICIO (AL REVES)
 def consulta_inicio():
     consulta.hide()
+    consulta.tableWidget.clearContents()  # Elimina el contenido de las celdas
+    while consulta.tableWidget.rowCount() > 0:
+        consulta.tableWidget.removeRow(0)
+    consulta.label_5.setText("")
+    consulta.lineEdit.setText("")
     inicio.show()
 
 #De INICIO a ELIMINAR
 def inicio_eliminar():
     inicio.hide()
+    inicio.label_19.setText("")
+    inicio.label_20.setText("")
+    try:
+        with sqlite3.connect("reservaciones.db") as conexion:
+            mi_cursor = conexion.cursor()
+            mi_cursor.execute("SELECT * FROM reservacion")
+            reserv_registrados = mi_cursor.fetchall()   # originalmente era eventos_registrados
+            if reserv_registrados:
+                eliminacion.tableWidget.setRowCount(0)
+                fila = 0
+                for fecha in reserv_registrados:
+                    eliminacion.tableWidget.insertRow(fila)
+                    columna = 0
+                    for elemento in fecha:
+                        celda = QTableWidgetItem(str(elemento))
+                        eliminacion.tableWidget.setItem(fila,columna, celda)
+                        columna += 1
+                    fila += 1
+            else:
+                eliminacion.label_4.setText("No se encontraron reservaciones registradas.")
+    except sqlite3.Error as e:
+        eliminacion.label_4.setText(e)
+    except:
+        eliminacion.label_4.setText(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
     eliminacion.show()
 
 #De ELIMINAR a INICIO (AL REVES)
@@ -356,6 +653,8 @@ def eliminar_inicio():
 #De INICIO a REGISTRAR CLIENTE
 def inicio_registro_cliente():
     inicio.hide()
+    inicio.label_19.setText("")
+    inicio.label_20.setText("")
     ver_clientes()
     registro_clientes.show()
 
@@ -367,6 +666,8 @@ def registro_cliente_inicio():
 #De INICIO a CONSULTAR CLIENTE
 def inicio_consulta_clientes():
     inicio.hide()
+    inicio.label_19.setText("")
+    inicio.label_20.setText("")
     ver_clientes()
     consulta_clientes.show()
 
@@ -389,6 +690,8 @@ def consulta_clientes_registro_clientes():
 #Cerrar app
 def salir_app():
     inicio.hide()
+    inicio.label_19.setText("")
+    inicio.label_20.setText("")
     app.exit()
 
 # ************ Botones pantallas ************
@@ -411,13 +714,23 @@ reservacion.regresar.clicked.connect(registrar_inicio)
 
 disponibles.regresar.clicked.connect(disponibles_inicio)
 
-# ***** Consultar habitaciones *****
+disponibles.consultar.clicked.connect(consulta_habitaciones)
+
+# ***** Consultar reservaciones *****
 
 consulta.volver.clicked.connect(consulta_inicio)
+
+consulta.consultar.clicked.connect(consulta_reservaciones)
+
+consulta.reporte_excel.clicked.connect(reporte_excel)
 
 # ***** Eliminar reservacion *****
 
 eliminacion.regresar.clicked.connect(eliminar_inicio) #MODIFICAR EL NOMBRE DE ESTE BOTON EN LA PANTALLA AL CAMBIARSE
+
+eliminacion.eliminar.clicked.connect(eliminar_reservacion)
+
+eliminacion.buscar.clicked.connect(eliminar_buscar)
 
 # ***** Registrar cliente *****
 
@@ -439,315 +752,14 @@ consulta_clientes.clientes_completos.clicked.connect(ver_clientes)
 #Regresar al menu
 consulta_clientes.menu_principal.clicked.connect(consulta_clientes_inicio)
 
+# ***** Pantalla confirmacion *****
+confirmacion.si.clicked.connect(confirmar_eliminacion_si)
+confirmacion.no.clicked.connect(confirmar_eliminacion_no)
+
+# *********** Pantalla exito_r ***********
+
+exito_r.volver.clicked.connect(exito_regresar_eliminacion)
+
 #Ejecutable del inicio de programa
 inicio.show()
 app.exec()
-
-while True:
-    print("***********************************************************")
-    print("**                    MENÚ PRINCIPAL                     **")
-    print("***********************************************************")
-    print("1. Registrar una reservación.")
-    print("2. Registrar a un nuevo cliente.")
-    print("3. Eliminar una reservación.")
-    print("4. Generar reporte.")
-    print("5. Salir.")
-    opcion= int(input("Selecionar una opción: "))
-
-    if opcion == 1: #registrar una reservación
-        while True:
-            print("\n***********************************************************")
-            print("**                     RESERVACIONES                       **")
-            print("***********************************************************")
-            print("1. Registrar nueva reservación.")
-            print("2. Consultar disponibilidad de habitaciones para una fecha.")
-            print("3. Volver al menú principal.")
-            opcion2= int(input("Selecionar una opción: "))
-            if opcion2 == 1:
-                print("\n**********************************************************")
-                print("**            RESERVACIÓN DE UNA HABITACION               **")
-                print("**********************************************************")
-                try:
-                    with sqlite3.connect("reservaciones.db") as conexion:  #comprobar que haya clientes registrados
-                        mi_cursor = conexion.cursor()
-                        mi_cursor.execute("SELECT * FROM clientes;")
-                        clientes_registrados = mi_cursor.fetchall()
-                except sqlite3.Error as e:
-                    print(e)
-                except:
-                    print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-                if (len(clientes_registrados) == 0):
-                    print("\nNo se encontraron clientes registrados, registrate como cliente para hacer una reservación.")
-                else:
-                    print("\nNumero\tNombre")
-                    print("*" * 30)
-                    for numero, nombre, telefono in clientes_registrados: # error aqui al hacer una nueva rservacion CHECAR ESTO
-                        print(f"{numero}\t{nombre}")
-                    numero_capturado = int(input("\nIntroduce tu número de cliente para hacer una reservación: "))
-                    try:
-                        with sqlite3.connect("reservaciones.db") as conexion:
-                            mi_cursor = conexion.cursor()
-                            mi_cursor.execute("SELECT idClientes FROM clientes;")
-                            numeros_clientes = mi_cursor.fetchall()
-                            for elemento in numeros_clientes:
-                                set_nums_clientes.add(elemento[0])  # set con los id's de los clientes
-                    except sqlite3.Error as e:
-                        print(e)
-                    except:
-                        print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-                    if numero_capturado in set_nums_clientes:
-                        print("\nHabitaciones disponibles para reservación: ")
-                        try:
-                            with sqlite3.connect("reservaciones.db") as conexion:
-                                mi_cursor = conexion.cursor()
-                                mi_cursor.execute("SELECT * FROM habitacion;")
-                                habitaciones_registradas = mi_cursor.fetchall()    # originalmente era salas_registradas
-                                if habitaciones_registradas:
-                                    print("\nClave\tTipo de habitación\tPiso\tPrecio\tEstado")
-                                    print("*" * 70)
-                                    for id, tipo, piso, precio, estado in habitaciones_registradas:
-                                        print(f"{id}\t{tipo}\t\t{piso}\t{precio}\t{estado}") #> originalmente la primera variable era clave, se cambió por id
-                                    habitacion_deseada=int(input('\nIngrese la clave de la habitación que desea reservar: ')) # originalmente era sala_deseada
-                                    for elemento in habitaciones_registradas:
-                                        set_claves_habitaciones.add(elemento[0])    # set con los id's de cada habitación
-                                    while habitacion_deseada not in set_claves_habitaciones:
-                                        print("\n-- La clave de habitación no existe. Ingresa una clave existente. --")
-                                        habitacion_deseada=int(input('\nIngrese la clave de la habitación que desea reservar: '))
-                                    else:
-                                        # fecha de inicio de la reservación
-                                        fecha_inicio_capturada = input("Introduce la fecha de inicio de la reservación (DD/MM/AAAA): ")
-                                        while (fecha_inicio_capturada == "" or str.isspace(fecha_inicio_capturada)):
-                                            print("\n-- Se debe escribir una fecha para la reservación --")
-                                            fecha_inicio_capturada = input("Introduce la fecha de inicio de la reservación (DD/MM/AAAA): ")
-                                        fecha_inicio_procesada = datetime.datetime.strptime(fecha_inicio_capturada, "%d/%m/%Y").date()
-                                        fecha_inicio_reservacion = datetime.datetime.combine(fecha_inicio_procesada, datetime.time(00, 00, 00))   # originalmente era fecha_evento
-                                        delta = fecha_inicio_reservacion - rounded_actual
-                                        while (delta.days < 2):
-                                            print("\nLa reservación tiene que ser, por lo menos, dos días antes de la fecha actual.\n")
-                                            fecha_inicio_capturada = input("Introduce la fecha de la reservación (DD/MM/AAAA): ")
-                                            fecha_inicio_procesada = datetime.datetime.strptime(fecha_inicio_capturada, "%d/%m/%Y").date()
-                                            fecha_inicio_reservacion = datetime.datetime.combine(fecha_inicio_procesada, datetime.time(00, 00, 00))
-                                            delta = fecha_inicio_reservacion - rounded_actual
-
-                                        # fecha de fin de la reservación:
-                                        fecha_fin_capturada = input("Introduce la fecha de fin de la reservación (DD/MM/AAAA): ")
-                                        while (fecha_fin_capturada == "" or str.isspace(fecha_fin_capturada)):
-                                            print("\n-- Se debe escribir una fecha final para la reservación --")
-                                            fecha_fin_capturada = input("Introduce la fecha de fin de la reservación (DD/MM/AAAA): ")
-                                        fecha_fin_procesada = datetime.datetime.strptime(fecha_fin_capturada, "%d/%m/%Y").date()
-
-                                        with sqlite3.connect("reservaciones.db") as conn:
-                                                datos_reservacion = (str(fecha_inicio_procesada), habitacion_deseada)   # originalmente era condiciones_sala, tupla para los datos a verificar si ya existen en la tabla reservacion
-                                                mi_cursor = conn.cursor()
-                                                mi_cursor.execute("SELECT * FROM reservacion WHERE fecha_inicio=:fecha_inicio AND Habitacion_idHabitacion=:habitacion_id", {"fecha_inicio": fecha_inicio_procesada, "habitacion_id": habitacion_deseada})
-                                                habitaciones_ocupadas = mi_cursor.fetchall()
-                                                if habitaciones_ocupadas:
-                                                    print("\nYa existe una reservación para esa habitación, a esa fecha y en ese turno.")
-                                                else:
-                                                    try:
-                                                        with sqlite3.connect("reservaciones.db") as conn:
-                                                            mi_cursor = conn.cursor()
-                                                            dict_reservacion = {"fecha_inicio": fecha_inicio_procesada, "fin": fecha_fin_procesada,"cliente": numero_capturado,"Habitacion": habitacion_deseada}
-                                                            mi_cursor.execute("INSERT INTO reservacion (fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion) VALUES(:fecha_inicio, :fin, :cliente, :Habitacion)", dict_reservacion)
-                                                            print("\nRegistro de reservación agregado.")
-                                                            print(f"\nLa clave de la reservación es {mi_cursor.lastrowid}, la fecha de inicio es {fecha_inicio_procesada.strftime('%d/%m/%Y')}, la fecha de fin es {fecha_fin_procesada.strftime('%d/%m/%Y')}, para el cliente con clave {numero_capturado} en la Habitación {habitacion_deseada}\n")
-                                                    except sqlite3.Error as e:
-                                                        print (e)
-                                                    except:
-                                                        print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-                                else:
-                                    print("\nNo se encontraron habitaciones registradas, registra una habitación para reservarla.")
-                        except sqlite3.Error as e:
-                            print(e)
-                        except:
-                            print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-                    else:
-                        print("\nEl número de cliente no existe, tienes que registrarte para hacer una reservación.\n")
-
-            elif opcion2 == 2:
-                print("\n**********************************************************")
-                print("**            DISPONIBILIDAD DE HABITACIONES                **")
-                print("**********************************************************")
-                fecha_busqueda = input("\nIngresa la fecha para la que quieres ver las salas disponibles (DD/MM/AAAA): ")
-                while (fecha_busqueda == "" or str.isspace(fecha_busqueda)):
-                    print("\n-- No se ha escrito una fecha. Escribe una fecha para continuar --")
-                    fecha_busqueda = input("\nIngresa la fecha para la que quieres ver las salas disponibles (DD/MM/AAAA): ")
-                fecha_busq_proc = datetime.datetime.strptime(fecha_busqueda, "%d/%m/%Y").date()
-                print(f"\n ** Habitaciones disponibles el {fecha_busq_proc} **\n")
-                tupla_fecha_disp = (fecha_busq_proc,)
-                try:
-                    with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
-                        mi_cursor = conexion.cursor()
-                        mi_cursor.execute("SELECT * FROM habitacion WHERE idHabitacion NOT IN (SELECT Habitacion_idHabitacion FROM reservacion WHERE ? BETWEEN fecha_inicio AND fecha_fin);", tupla_fecha_disp)
-                        fetch_habitaciones_disp = mi_cursor.fetchall() #todas las fechas (de inicio y fin) de cada reservación
-                        if fetch_habitaciones_disp:
-                            print("Clave\tTipo de habitación\tPiso\tPrecio\tEstado")
-                            print("*" * 60)
-                            for id, tipo, piso, precio, estado in fetch_habitaciones_disp:   #se cambió la variable clave por id
-                                print(f"{id}\t{tipo}\t\t{piso}\t{precio}\t{estado}")
-                        else:
-                            print("\nNo se encontraron habitaciones disponibles en esa fecha.")
-                except sqlite3.Error as e:
-                    print(e)
-                except:
-                    print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-            elif opcion2 == 3:
-                break       # Cerrar el submenú
-
-    elif opcion == 2:   # Registrar a un nuevo cliente
-        print("\n**********************************************************")
-        print("**           REGISTRO DE CLIENTE                 **")
-        print("**********************************************************")
-        telefono_cliente = input("Introduce tu numero telefónico: ")
-        while telefono_cliente == "" or telefono_cliente.isspace() == True:
-            print("\n-- Debe escribir un numero telefonico para el registro --")
-            telefono_cliente = input("Introduce tu numero telefónico: ")
-        nombre_cliente = input("Introduce tu nombre como cliente: ")
-        while nombre_cliente == "" or nombre_cliente.isspace() == True:
-            print("\n-- Debe escribirse un nombre de cliente para el registro --")
-            nombre_cliente = input("Introduce tu nombre como cliente: ")
-        try:
-            with sqlite3.connect("reservaciones.db") as conexion:
-                mi_cursor = conexion.cursor()
-                tupla_datos_cliente =(nombre_cliente, telefono_cliente)
-                mi_cursor.execute("INSERT INTO clientes (nombre,telefono) VALUES(?, ?);", tupla_datos_cliente)
-                print("\nRegistro de cliente agregado.")
-                print(f"\nEl número de cliente para {nombre_cliente} es {mi_cursor.lastrowid}\nSu número telefónico es: {telefono_cliente}\n")
-        except sqlite3.Error as e:
-            print (e)
-        except:
-            print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-
-    elif opcion == 3:   # Eliminar una reservación
-        print("\n**********************************************************")
-        print("**               ELIMINAR UNA RESERVACION                 **")
-        print("**********************************************************")
-        try:
-            with sqlite3.connect("reservaciones.db") as conexion:
-                mi_cursor = conexion.cursor()
-                mi_cursor.execute("SELECT * FROM reservacion")
-                reserv_registrados = mi_cursor.fetchall()   # originalmente era eventos_registrados
-                if reserv_registrados:
-                    print("\n** Reservaciones registradas **")  # mostrar todas las reservaciones
-                    print("\nClave\tFecha de inicio\tFecha de fin\tCliente\tHabitación")
-                    print("*" * 80)
-                    for clave, inicio, fin, cliente, habitacion in reserv_registrados:
-                        print(f"{clave}\t{inicio}\t{fin}\t{cliente}\t{habitacion}")
-                else:
-                    print("\nNo se encontraron reservaciones registradas.")
-        except sqlite3.Error as e:
-            print(e)
-        except:
-            print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-        if reserv_registrados:
-            clave_eliminar = int(input("\nIngresa la clave de la reservación que deseas eliminar: "))
-            try:
-                with sqlite3.connect("reservaciones.db") as conexion:
-                    mi_cursor = conexion.cursor()
-                    tupla_clave_eliminar = (clave_eliminar, )
-                    mi_cursor.execute("SELECT * FROM reservacion WHERE idreservacion = ?", tupla_clave_eliminar)
-                    reserv_con_clave = mi_cursor.fetchall()
-                    if reserv_con_clave:
-                        print("\n** Reservación a eliminar **")
-                        print("\Clave\Fecha de inicio\t\tFecha de fin\t\tCliente\tHabitación")
-                        print("*" * 70)
-                        for clave, inicio, fin, cliente, habitacion in reserv_con_clave:
-                            print(f"{clave}\t{inicio}\t{fin}\t{cliente}t{habitacion}")
-                        opcion_eliminar = int(input("\n¿Deseas eliminar esta reservación? Esta acción no puede deshacerse.\n1.Si\n2.No\n>"))
-                        if opcion_eliminar == 1:
-                            for clave, inicio, fin, cliente, habitacion in reserv_con_clave:
-                                fecha_reserv_eliminar = datetime.datetime.strptime(inicio, "%Y-%m-%d").date()
-                                fecha_proc_eliminar = datetime.datetime.combine(fecha_reserv_eliminar, datetime.time(00, 00, 00))
-                                delta_eliminar = fecha_proc_eliminar - rounded_actual
-                            if (delta_eliminar.days < 3):
-                                print("\nSolo se pueden eliminar reservaciones con, por lo menos, tres días de anticipación.")
-                            else:
-                                try:
-                                    mi_cursor.execute("DELETE FROM reservacion WHERE idreservacion = ?", tupla_clave_eliminar)
-                                    print(f"\nSe ha eliminado la reservación con la clave {clave_eliminar}.")
-                                except sqlite3.Error as e:
-                                    print(e)
-                                except:
-                                    print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-                        else:
-                            print("\nSe ha suspendido la operación.")
-                    else:
-                        print("\nNo se encontró una reservación con esa clave.")
-            except sqlite3.Error as e:
-                print(e)
-            except:
-                print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-
-    elif opcion == 4:
-        while True:
-            print("\n***********************************************************")
-            print("**              REPORTES DE RESERVACIONES                **")
-            print("***********************************************************")
-            print("1. Reporte en pantalla de reservaciones para una fecha.")
-            print("2. Exportar reporte tabular en Excel.")
-            print("3. Volver al menú principal.")
-            opcion3= int(input("Selecionar una opción: "))
-            if opcion3 == 1:
-                fecha_consulta = input("\nIntroduce la fecha a consultar (DD/MM/AAAA): ")
-                while (fecha_consulta == "" or str.isspace(fecha_consulta)):
-                    print("\n-- No se ha escrito una fecha. Escribe una fecha para continuar --")
-                    fecha_consulta = input("\nIntroduce la fecha a consultar (DD/MM/AAAA): ")
-                fecha_proc_consulta = datetime.datetime.strptime(fecha_consulta, "%d/%m/%Y").date() # checar formato de fecha
-                tupla_fecha_consulta = (fecha_proc_consulta,)
-                try:
-                    with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
-                        mi_cursor = conexion.cursor()
-                        mi_cursor.execute("SELECT idreservacion, fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion FROM reservacion WHERE ? BETWEEN fecha_inicio AND fecha_fin", tupla_fecha_consulta)  # CAMBIÉ: estaba agregada la tupla pero faltaba el WHERE
-                        eventos_en_fecha = mi_cursor.fetchall()
-                        if eventos_en_fecha:
-                            print("\n---------------------------------------------------------------------")
-                            print(f"--     REPORTE DE RESERVACIONES PARA EL DÍA {fecha_proc_consulta}    --")
-                            print("---------------------------------------------------------------------")
-                            print("CLAVE\tFECHA DE INICIO\t\tFECHA DE FIN\tCLIENTE\tHABITACION\t")
-                            print("---------------------------------------------------------------------")
-                            for id, fecha_inicio, fecha_fin, cliente, habitacion in eventos_en_fecha:
-                                print(f"{id}\t{fecha_inicio}\t\t{fecha_fin}\t{cliente}\t{habitacion}\t")
-                            print("----------                 FIN DEL REPORTE                -----------\n")
-                        else:
-                            print("\nNo se encontraron reservaciones registradas para esa fecha.")
-                except sqlite3.Error as e:
-                    print(e)
-                except:
-                    print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-
-            elif opcion3 == 2:
-                fecha_consultar_reservacion = input("\nIntroduce la fecha a consultar (DD/MM/AAAA): ")
-                while (fecha_consultar_reservacion == "" or str.isspace(fecha_consultar_reservacion)):
-                    print("\n-- No se ha escrito una fecha. Escribe una fecha para continuar --")
-                    fecha_consultar_reservacion = input("\nIntroduce la fecha a consultar (DD/MM/AAAA): ")
-                fecha_procesada_consul = datetime.datetime.strptime(fecha_consultar_reservacion, "%d/%m/%Y").date()
-                tupla_fecha_exportar = (fecha_procesada_consul,)
-                try:
-                    with sqlite3.connect("reservaciones.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES) as conexion:
-                        mi_cursor = conexion.cursor()
-                        mi_cursor.execute("SELECT idreservacion, fecha_inicio, fecha_fin, Clientes_idClientes, Habitacion_idHabitacion FROM reservacion WHERE ? BETWEEN fecha_inicio AND fecha_fin", tupla_fecha_exportar)  #CAMBIÉ: faltaba el WHERE
-                        reservacion_a_exportar = mi_cursor.fetchall()
-                        if reservacion_a_exportar:
-                            for id, fecha_inicio, fecha_fin, cliente, habitacion in reservacion_a_exportar: # CAMBIÉ: los datos enlistados estaban en un orden distinto al original escrito en el SELECT (los datos se hubieran guardado desordenados)
-                                dict_por_fecha[id] = [fecha_inicio, fecha_fin, cliente, habitacion]
-                            with open("reservaciones.csv","w", newline="") as archivo_reserv:
-                                grabador = csv.writer(archivo_reserv)
-                                grabador.writerow(("Clave de reservacion", "Fecha de inicio", "Fecha de fin", "Cliente", "Habitacion"))
-                                grabador.writerows([(id_columna, datos[0], datos[1], datos[2], datos[3]) for id_columna, datos in dict_por_fecha.items()])
-                            df_reserv_fecha = pd.read_csv('reservaciones.csv')
-                            excel_reserv = pd.ExcelWriter('reservaciones.xlsx')
-                            df_reserv_fecha.to_excel(excel_reserv, index=False)
-                            excel_reserv.save()     # si crea el archivo pero aparece el mensaje "save is not part of the public API, usage can give in unexpected results and will be removed in a future version"
-                            print("\nSe ha creado el archivo excel.\n")
-                        else:
-                            print("\nNo se encontraron reservaciones registradas para esa fecha.")
-                except sqlite3.Error as e:
-                    print(e)
-                except:
-                    print(f"Se produjo el siguiente error: {sys.exc_info()[0]}")
-            elif opcion3 == 3:
-                break
-    elif opcion == 5:
-        break
-if (conexion):
-    conexion.close()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>398</width>
-    <height>240</height>
+    <width>412</width>
+    <height>228</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,7 +21,7 @@
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>10</y>
+      <y>30</y>
       <width>331</width>
       <height>41</height>
      </rect>
@@ -34,30 +34,13 @@ font: 75 12pt &quot;MS Shell Dlg 2&quot;;</string>
      <string>¿Seguro que quiere eliminar esta reservacion?</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="si">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>180</y>
-      <width>75</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">background-color: rgb(255, 0, 0);
-background-color: rgb(255, 255, 0);</string>
-    </property>
-    <property name="text">
-     <string>Regresar</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="pushButton_2">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
+      <x>70</x>
       <y>100</y>
-      <width>75</width>
-      <height>23</height>
+      <width>101</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -67,13 +50,13 @@ background-color: rgb(255, 255, 0);</string>
      <string>Si</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_3">
+   <widget class="QPushButton" name="no">
     <property name="geometry">
      <rect>
-      <x>290</x>
+      <x>240</x>
       <y>100</y>
-      <width>75</width>
-      <height>23</height>
+      <width>101</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -81,22 +64,6 @@ background-color: rgb(255, 255, 0);</string>
     </property>
     <property name="text">
      <string>No</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_2">
-    <property name="geometry">
-     <rect>
-      <x>100</x>
-      <y>140</y>
-      <width>191</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color: rgb(255, 0, 0);</string>
-    </property>
-    <property name="text">
-     <string/>
     </property>
    </widget>
   </widget>
